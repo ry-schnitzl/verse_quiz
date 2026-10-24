@@ -135,6 +135,25 @@ ask() {
     fi
 }
 
+# Split a one-line guess such as "1 John 1:9", "1 John 1 9", "John3:16" or
+# "John 3" into GUESS_BOOK, GUESS_CHAPTER and GUESS_VERSE. Up to two trailing
+# numbers are the chapter and verse; everything before them is the book.
+# Missing parts are left empty.
+parse_guess() {
+    local spaced words=() nums=() n
+    # Treat ":" and "." as separators, and split "John3" into "John 3".
+    spaced="$(sed -E -e 's/[:.]/ /g' -e 's/([[:alpha:]])([0-9])/\1 \2/g' <<< "$1")"
+    read -ra words <<< "$spaced"
+    n=${#words[@]}
+    while (( n > 0 && ${#nums[@]} < 2 )) && [[ "${words[n-1]}" =~ ^[0-9]+$ ]]; do
+        nums=("${words[n-1]}" "${nums[@]}")
+        n=$(( n - 1 ))
+    done
+    GUESS_BOOK="${words[*]:0:n}"
+    GUESS_CHAPTER="${nums[0]:-}"
+    GUESS_VERSE="${nums[1]:-}"
+}
+
 # ✓ for full points, ~ for partial, ✗ for none.
 mark() {
     if (( $1 == $2 )); then printf '%s✓%s' "$GREEN" "$RESET"
@@ -189,7 +208,7 @@ if (( ${#picks[@]} < ROUNDS )); then
 fi
 
 books=() chapters=() verses=() texts=()
-book_guesses=() chapter_guesses=() verse_guesses=()
+raw_guesses=() book_guesses=() chapter_guesses=() verse_guesses=()
 book_right=() chapter_scores=() verse_scores=()
 
 echo "${BOLD}Verse Quiz: $SCOPE_LABEL${RESET}"
@@ -213,12 +232,16 @@ for i in "${!picks[@]}"; do
     echo
 
     if [[ -n "$BOOK" ]]; then
-        book_guess="$book"
+        ask "  Guess (Ch:V): "
+        parse_guess "$ANSWER"
+        book_guess="$book"   # Any book typed in single-book mode is ignored.
     else
-        ask "  Book:    "; book_guess="$ANSWER"
+        ask "  Guess (Bk Ch:V): "
+        parse_guess "$ANSWER"
+        book_guess="$GUESS_BOOK"
     fi
-    ask "  Chapter: "; chapter_guess="$ANSWER"
-    ask "  Verse:   "; verse_guess="$ANSWER"
+    chapter_guess="$GUESS_CHAPTER" verse_guess="$GUESS_VERSE"
+    raw_guesses+=("$ANSWER")
     book_guesses+=("$book_guess") chapter_guesses+=("$chapter_guess") verse_guesses+=("$verse_guess")
 
     if [[ "$(normalize_book "$book_guess")" == "$(normalize_book "$book")" ]]; then
@@ -248,22 +271,23 @@ for i in "${!books[@]}"; do
     echo
     echo "${BOLD}$((i + 1)). ${books[i]} ${chapters[i]}:${verses[i]}${RESET}  (+$points)"
     fold -s -w 76 <<< "${texts[i]}" | sed 's/^/    /'
+    echo "    Your guess: ${raw_guesses[i]:-?}"
     if [[ -z "$BOOK" ]]; then
         printf '    Book:    %s %s  (+%d)\n' "$(mark "$book_score" "$BOOK_POINTS")" \
-            "${book_guesses[i]:-(blank)}" "$book_score"
+            "${book_guesses[i]:-?}" "$book_score"
     fi
     if (( book_right[i] )); then
         printf '    Chapter: %s %s  (+%d)\n' "$(mark "${chapter_scores[i]}" "$CHAPTER_POINTS")" \
-            "${chapter_guesses[i]:-(blank)}" "${chapter_scores[i]}"
+            "${chapter_guesses[i]:-?}" "${chapter_scores[i]}"
         if (( chapter_scores[i] == CHAPTER_POINTS )); then
             printf '    Verse:   %s %s  (+%d)\n' "$(mark "${verse_scores[i]}" "$VERSE_POINTS")" \
-                "${verse_guesses[i]:-(blank)}" "${verse_scores[i]}"
+                "${verse_guesses[i]:-?}" "${verse_scores[i]}"
         else
-            echo "    Verse:   ${verse_guesses[i]:-(blank)}  (no verse points without the exact chapter)"
+            echo "    Verse:   ${verse_guesses[i]:-?}"
         fi
         echo "    Combo points: $combo"
     else
-        echo "    Chapter: ${chapter_guesses[i]:-(blank)}, Verse: ${verse_guesses[i]:-(blank)}  (no combo points without the book)"
+        echo "    Chapter: ${chapter_guesses[i]:-?}, Verse: ${verse_guesses[i]:-?}"
     fi
 done
 
@@ -273,5 +297,5 @@ echo
 if [[ -z "$BOOK" ]]; then
     echo "Books correct: $books_correct / $ROUNDS"
 fi
-echo "Combo points:  $combo_total / $max_combo"
-echo "${BOLD}Score: $score / $max_score${RESET}"
+echo "Combo points:  $combo_total"
+echo "${BOLD}Score: $score${RESET}"

@@ -30,7 +30,7 @@ If you get "Permission denied", make the script executable first with
 ## How to play
 
 1. The game shows a verse.
-2. Type the book and press Enter, then the chapter, then the verse.
+2. Type your guess on one line, such as `John 3:16`, and press Enter.
 3. Repeat for each verse (10 by default).
 4. After the last verse, the game reveals the correct answers, the points you
    earned for each verse, and your total score.
@@ -43,10 +43,25 @@ Verse 1 of 10
     If we confess our sins, He is faithful and just to forgive us our sins and
     to cleanse us from all unrighteousness.
 
-  Book:    1 John
-  Chapter: 1
-  Verse:   8
+  Guess (Book Chapter:Verse): 1 John 1:8
 ```
+
+### Typing a guess
+
+Write the book, then the chapter and verse, separated by a colon or a space:
+
+| You type        | Read as             |
+| --------------- | ------------------- |
+| `John 3:16`     | John, chapter 3, verse 16 |
+| `John 3 16`     | John, chapter 3, verse 16 |
+| `1 John 1.9`    | 1 John, chapter 1, verse 9 |
+| `1john1:9`      | 1 John, chapter 1, verse 9 |
+| `John 3`        | John, chapter 3, no verse |
+| `John`          | John, no chapter or verse |
+
+If you leave part off, you still get points for the parts you wrote. For
+example, `John 3` can earn the book and chapter points. A verse can't be given
+without a chapter: in `John 16`, the 16 is read as the chapter.
 
 ### Typing book names
 
@@ -60,7 +75,7 @@ These alternate names also work:
 | `Song of Songs`          | Song of Solomon    |
 | `Psalm`                  | Psalms             |
 
-Chapter and verse answers must be whole numbers.
+Chapter and verse numbers must be whole numbers.
 
 ## Scoring
 
@@ -108,7 +123,9 @@ works with any of them.
 
 ### Playing a single book
 
-With `--book`, the game doesn't ask for the book. The book's 1 point moves to
+With `--book`, the game doesn't ask for the book: type just the chapter and
+verse, such as `3:23` or `3 23`. If you type a book name anyway, it's ignored.
+The book's 1 point moves to
 the chapter instead, so the chapter is worth **5** points, minus 1 for each
 number you're off. The verse is still worth 20 points and still requires the
 exact chapter. Each verse is still worth up to 25 points.
