@@ -49,6 +49,7 @@ fun SetupScreen(viewModel: QuizViewModel) {
     val bible = viewModel.bible ?: return
     var pickingBook by remember { mutableStateOf(false) }
     val scope = viewModel.scope
+    val click = LocalUiClick.current
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -59,11 +60,12 @@ fun SetupScreen(viewModel: QuizViewModel) {
         ) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "Verse Quiz",
+                    "You be the Reference",
                     style = MaterialTheme.typography.displaySmall,
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
                 )
                 Text(
                     "Read a verse. Name where it's from.",
@@ -99,7 +101,10 @@ fun SetupScreen(viewModel: QuizViewModel) {
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     FilledTonalButton(
-                        onClick = { viewModel.changeRounds(viewModel.rounds - 1) },
+                        onClick = {
+                            click()
+                            viewModel.changeRounds(viewModel.rounds - 1)
+                        },
                         enabled = viewModel.rounds > 1,
                     ) { Text("−", style = MaterialTheme.typography.titleLarge) }
                     Text(
@@ -109,7 +114,10 @@ fun SetupScreen(viewModel: QuizViewModel) {
                         textAlign = TextAlign.Center,
                     )
                     FilledTonalButton(
-                        onClick = { viewModel.changeRounds(viewModel.rounds + 1) },
+                        onClick = {
+                            click()
+                            viewModel.changeRounds(viewModel.rounds + 1)
+                        },
                         enabled = viewModel.rounds < max,
                     ) { Text("+", style = MaterialTheme.typography.titleLarge) }
                 }
@@ -129,7 +137,10 @@ fun SetupScreen(viewModel: QuizViewModel) {
             }
 
             Button(
-                onClick = viewModel::start,
+                onClick = {
+                    click()
+                    viewModel.start()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp),
@@ -167,11 +178,19 @@ fun SectionCard(title: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun ScopeOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    val click = LocalUiClick.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
+            .selectable(
+                selected = selected,
+                onClick = {
+                    click()
+                    onClick()
+                },
+                role = Role.RadioButton,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null)
@@ -208,6 +227,7 @@ private fun BookPickerDialog(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val click = LocalUiClick.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Choose a book") },
@@ -220,7 +240,12 @@ private fun BookPickerDialog(
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = {
+            TextButton(onClick = {
+                click()
+                onDismiss()
+            }) { Text("Cancel") }
+        },
     )
 }
 
@@ -236,11 +261,15 @@ private fun BookGroupHeader(title: String) {
 
 @Composable
 private fun BookRow(book: String, selected: Boolean, onPick: (String) -> Unit) {
+    val click = LocalUiClick.current
     Text(
         book,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onPick(book) }
+            .clickable {
+                click()
+                onPick(book)
+            }
             .padding(vertical = 12.dp, horizontal = 4.dp),
         style = MaterialTheme.typography.bodyLarge,
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,

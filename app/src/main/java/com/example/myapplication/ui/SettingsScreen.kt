@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.quiz.QuizViewModel
+import com.example.myapplication.quiz.SoundMode
 import com.example.myapplication.ui.theme.Palette
 import com.example.myapplication.ui.theme.ThemeMode
 import com.example.myapplication.ui.theme.colorSchemeFor
@@ -47,6 +48,7 @@ private const val SWATCHES_PER_ROW = 4
 fun SettingsScreen(viewModel: QuizViewModel) {
     BackHandler { viewModel.closeSettings() }
     val dark = viewModel.themeMode.isDark()
+    val click = LocalUiClick.current
 
     Column(
         modifier = Modifier
@@ -61,7 +63,10 @@ fun SettingsScreen(viewModel: QuizViewModel) {
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleLarge,
             )
-            TextButton(onClick = viewModel::closeSettings) { Text("Done") }
+            TextButton(onClick = {
+                click()
+                viewModel.closeSettings()
+            }) { Text("Done") }
         }
 
         SectionCard("Mode") {
@@ -69,7 +74,10 @@ fun SettingsScreen(viewModel: QuizViewModel) {
                 ThemeMode.entries.forEachIndexed { index, mode ->
                     SegmentedButton(
                         selected = viewModel.themeMode == mode,
-                        onClick = { viewModel.chooseThemeMode(mode) },
+                        onClick = {
+                            click()
+                            viewModel.chooseThemeMode(mode)
+                        },
                         shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
                     ) { Text(mode.label) }
                 }
@@ -85,7 +93,10 @@ fun SettingsScreen(viewModel: QuizViewModel) {
                             dark = dark,
                             vibrant = viewModel.vibrant,
                             selected = viewModel.palette == palette,
-                            onClick = { viewModel.choosePalette(palette) },
+                            onClick = {
+                                click()
+                                viewModel.choosePalette(palette)
+                            },
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -118,15 +129,27 @@ fun SettingsScreen(viewModel: QuizViewModel) {
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Next verse") }
+            Button(onClick = click, modifier = Modifier.fillMaxWidth()) { Text("Next verse") }
         }
 
         SectionCard("Sound") {
-            SwitchRow(
-                title = "Sound effects",
-                description = "A click for each answer and a fanfare for your results.",
-                checked = viewModel.soundOn,
-                onCheckedChange = viewModel::chooseSoundOn,
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                SoundMode.entries.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = viewModel.soundMode == mode,
+                        onClick = {
+                            // Choose first, so picking "All" clicks and picking "Off" doesn't.
+                            viewModel.chooseSoundMode(mode)
+                            click()
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index, SoundMode.entries.size),
+                    ) { Text(mode.label) }
+                }
+            }
+            Text(
+                viewModel.soundMode.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -140,6 +163,7 @@ private fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     enabled: Boolean = true,
 ) {
+    val click = LocalUiClick.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -148,7 +172,10 @@ private fun SwitchRow(
                 value = checked,
                 enabled = enabled,
                 role = Role.Switch,
-                onValueChange = onCheckedChange,
+                onValueChange = {
+                    click()
+                    onCheckedChange(it)
+                },
             ),
         verticalAlignment = Alignment.CenterVertically,
     ) {

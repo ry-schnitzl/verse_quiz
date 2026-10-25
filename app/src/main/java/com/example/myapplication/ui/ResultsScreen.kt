@@ -39,6 +39,7 @@ fun ResultsScreen(
 ) {
     val game = screen.game
     val results = screen.results
+    val click = LocalUiClick.current
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -80,13 +81,19 @@ fun ResultsScreen(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = onPlayAgain,
+                    onClick = {
+                        click()
+                        onPlayAgain()
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 48.dp),
                 ) { Text("Play again") }
                 OutlinedButton(
-                    onClick = onChangeSettings,
+                    onClick = {
+                        click()
+                        onChangeSettings()
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 48.dp),

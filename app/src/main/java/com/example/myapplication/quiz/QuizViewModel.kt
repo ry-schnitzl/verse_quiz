@@ -18,6 +18,12 @@ import java.io.IOException
 const val DEFAULT_ROUNDS = 10
 const val MAX_ROUNDS = 50
 
+enum class SoundMode(val label: String, val description: String) {
+    ALL("All", "Clicks for every button, plus the game sounds."),
+    GAME("Game only", "A click for each answer and a fanfare for your results."),
+    OFF("Off", "No sounds."),
+}
+
 class Game(val scope: Scope, val verses: List<Verse>) {
     val rules = ScoringRules.forScope(scope)
     val singleBook get() = scope is Scope.SingleBook
@@ -42,7 +48,10 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var vibrant by mutableStateOf(prefs.getBoolean("vibrant", false))
         private set
-    var soundOn by mutableStateOf(prefs.getBoolean("soundOn", true))
+    // Earlier versions saved an on/off switch; keep "off" if the player chose it.
+    var soundMode by mutableStateOf(
+        savedEnum("soundMode", if (prefs.getBoolean("soundOn", true)) SoundMode.ALL else SoundMode.OFF)
+    )
         private set
 
     private val sounds = SoundEffects(application)
@@ -116,14 +125,14 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         val book = if (game.singleBook) verse.book else bookInput
         results += scoreGuess(verse, Guess(book, chapterInput, verseInput), game.rules)
         clearInputs()
-        if (soundOn) sounds.playClick()
+        if (soundMode != SoundMode.OFF) sounds.playClick()
 
         val next = playing.round + 1
         if (next < game.verses.size) {
             screen = QuizScreen.Playing(game, next)
         } else {
             screen = QuizScreen.Finished(game, results.toList())
-            if (soundOn) sounds.playFanfare()
+            if (soundMode != SoundMode.OFF) sounds.playFanfare()
         }
     }
 
@@ -156,9 +165,14 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit().putBoolean("vibrant", on).apply()
     }
 
-    fun chooseSoundOn(on: Boolean) {
-        soundOn = on
-        prefs.edit().putBoolean("soundOn", on).apply()
+    fun chooseSoundMode(mode: SoundMode) {
+        soundMode = mode
+        prefs.edit().putString("soundMode", mode.name).apply()
+    }
+
+    /** The click for an ordinary button tap, heard only when all sounds are on. */
+    fun playUiClick() {
+        if (soundMode == SoundMode.ALL) sounds.playClick()
     }
 
     override fun onCleared() {

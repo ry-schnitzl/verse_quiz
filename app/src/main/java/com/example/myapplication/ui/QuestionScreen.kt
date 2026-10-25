@@ -51,6 +51,7 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
     val total = game.verses.size
     val isLast = screen.round == total - 1
     var confirming by remember { mutableStateOf<MenuAction?>(null) }
+    val click = LocalUiClick.current
 
     BackHandler { confirming = MenuAction.QUIT }
 
@@ -161,6 +162,7 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
                     items(suggestions) { book ->
                         SuggestionChip(
                             onClick = {
+                                click()
                                 viewModel.bookInput = book
                                 chapterField.requestFocus()
                             },
@@ -191,6 +193,7 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
             text = { Text("Your guesses so far won't be scored.") },
             confirmButton = {
                 TextButton(onClick = {
+                    click()
                     confirming = null
                     when (action) {
                         MenuAction.RESTART -> viewModel.start()
@@ -199,7 +202,10 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
                 }) { Text(action.label) }
             },
             dismissButton = {
-                TextButton(onClick = { confirming = null }) { Text("Keep playing") }
+                TextButton(onClick = {
+                    click()
+                    confirming = null
+                }) { Text("Keep playing") }
             },
         )
     }

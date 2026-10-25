@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -24,27 +25,29 @@ import com.example.myapplication.quiz.QuizViewModel
 
 @Composable
 fun QuizApp(viewModel: QuizViewModel = viewModel()) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .consumeWindowInsets(innerPadding)
-                .imePadding()
-        ) {
-            if (viewModel.showingSettings) {
-                SettingsScreen(viewModel)
-            } else {
-                when (val screen = viewModel.screen) {
-                    QuizScreen.Loading -> CenteredMessage("Loading verses…", showSpinner = true)
-                    is QuizScreen.LoadFailed -> CenteredMessage(screen.message)
-                    QuizScreen.Setup -> SetupScreen(viewModel)
-                    is QuizScreen.Playing -> QuestionScreen(viewModel, screen)
-                    is QuizScreen.Finished -> ResultsScreen(
-                        screen = screen,
-                        onPlayAgain = viewModel::start,
-                        onChangeSettings = viewModel::backToSetup,
-                    )
+    CompositionLocalProvider(LocalUiClick provides viewModel::playUiClick) {
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding)
+                    .imePadding()
+            ) {
+                if (viewModel.showingSettings) {
+                    SettingsScreen(viewModel)
+                } else {
+                    when (val screen = viewModel.screen) {
+                        QuizScreen.Loading -> CenteredMessage("Loading verses…", showSpinner = true)
+                        is QuizScreen.LoadFailed -> CenteredMessage(screen.message)
+                        QuizScreen.Setup -> SetupScreen(viewModel)
+                        is QuizScreen.Playing -> QuestionScreen(viewModel, screen)
+                        is QuizScreen.Finished -> ResultsScreen(
+                            screen = screen,
+                            onPlayAgain = viewModel::start,
+                            onChangeSettings = viewModel::backToSetup,
+                        )
+                    }
                 }
             }
         }

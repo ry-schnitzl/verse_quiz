@@ -25,9 +25,13 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun MenuButton(items: List<Pair<String, () -> Unit>>) {
     var open by remember { mutableStateOf(false) }
+    val click = LocalUiClick.current
     Box {
         IconButton(
-            onClick = { open = true },
+            onClick = {
+                click()
+                open = true
+            },
             modifier = Modifier.semantics { contentDescription = "Menu" },
         ) { HamburgerIcon(MaterialTheme.colorScheme.onSurface) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -35,6 +39,7 @@ fun MenuButton(items: List<Pair<String, () -> Unit>>) {
                 DropdownMenuItem(
                     text = { Text(label) },
                     onClick = {
+                        click()
                         open = false
                         action()
                     },

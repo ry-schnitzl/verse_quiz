@@ -32,7 +32,7 @@ enum class Palette(
     val hue: Float,
     val saturation: Float,
     val lightness: Float = 0.38f,
-    val vibrantSaturation: Float = 0.85f,
+    val vibrantSaturation: Float = 1f,
 ) {
     DEVICE("Device", 0f, 0f),
     RED("Red", 0f, 0.42f),
@@ -44,8 +44,8 @@ enum class Palette(
     BLUE("Blue", 215f, 0.38f),
     PURPLE("Purple", 270f, 0.28f, 0.42f),
     PINK("Pink", 330f, 0.38f, 0.40f),
-    BROWN("Brown", 25f, 0.28f, 0.32f, vibrantSaturation = 0.5f),
-    GRAY("Gray", 220f, 0.05f, 0.36f, vibrantSaturation = 0.12f),
+    BROWN("Brown", 25f, 0.28f, 0.32f, vibrantSaturation = 0.7f),
+    GRAY("Gray", 220f, 0.05f, 0.36f, vibrantSaturation = 0.18f),
 }
 
 /** WCAG contrast ratio between two colors, from 1 (none) to 21 (black on white). */
@@ -69,6 +69,21 @@ private fun shadeForWhiteText(hue: Float, saturation: Float, start: Float): Floa
     return lightness
 }
 
+/**
+ * The darkest shade, from [start] up, that dark text (the same hue at 15% lightness)
+ * can sit on and stay readable. Used for dark-mode buttons and accents.
+ */
+private fun shadeForDarkText(hue: Float, saturation: Float, start: Float): Float {
+    val text = Color.hsl(hue, saturation, 0.15f)
+    var lightness = start
+    while (lightness < 0.9f &&
+        contrastRatio(text, Color.hsl(hue, saturation, lightness)) < 5f
+    ) {
+        lightness += 0.01f
+    }
+    return lightness
+}
+
 /** A full Material color scheme from one of the hue-based palettes. */
 fun paletteColorScheme(palette: Palette, dark: Boolean, vibrant: Boolean = false): ColorScheme {
     val hue = palette.hue
@@ -88,19 +103,27 @@ fun paletteColorScheme(palette: Palette, dark: Boolean, vibrant: Boolean = false
     val tertiaryShade = shadeForWhiteText(accentHue, sat, palette.lightness)
     // Dark-mode highlight backgrounds go a little darker when vibrant, so light text stays readable.
     val darkContainer = if (vibrant) 0.24f else 0.28f
+    // Dark-mode accents: deeper when vibrant, so they read as bold rather than pastel,
+    // but lightened where needed to keep dark text on them readable.
+    val darkAccent = if (vibrant) 0.66f else 0.76f
+    val darkPrimary = shadeForDarkText(hue, sat, darkAccent)
+    val darkSecondary = shadeForDarkText(hue, sat * 0.5f, darkAccent)
+    val darkTertiary = shadeForDarkText(accentHue, sat, darkAccent)
+    // Light-mode highlight backgrounds: a little stronger when vibrant.
+    val lightContainer = if (vibrant) 0.85f else 0.88f
 
     return if (dark) {
         darkColorScheme(
-            primary = tone(0.76f),
+            primary = tone(darkPrimary),
             onPrimary = tone(0.15f),
             primaryContainer = tone(darkContainer),
             onPrimaryContainer = tone(0.90f),
             inversePrimary = tone(primaryShade),
-            secondary = tone(0.76f, sat * 0.5f),
+            secondary = tone(darkSecondary, sat * 0.5f),
             onSecondary = tone(0.15f, sat * 0.5f),
             secondaryContainer = tone(darkContainer, sat * 0.5f),
             onSecondaryContainer = tone(0.90f, sat * 0.5f),
-            tertiary = tone(0.76f, h = accentHue),
+            tertiary = tone(darkTertiary, h = accentHue),
             onTertiary = tone(0.15f, h = accentHue),
             tertiaryContainer = tone(darkContainer, h = accentHue),
             onTertiaryContainer = tone(0.90f, h = accentHue),
@@ -110,7 +133,7 @@ fun paletteColorScheme(palette: Palette, dark: Boolean, vibrant: Boolean = false
             onSurface = neutral(0.90f),
             surfaceVariant = neutral(0.24f),
             onSurfaceVariant = neutral(0.78f),
-            surfaceTint = tone(0.76f),
+            surfaceTint = tone(darkPrimary),
             inverseSurface = neutral(0.90f),
             inverseOnSurface = neutral(0.15f),
             outline = neutral(0.56f),
@@ -127,16 +150,16 @@ fun paletteColorScheme(palette: Palette, dark: Boolean, vibrant: Boolean = false
         lightColorScheme(
             primary = tone(primaryShade),
             onPrimary = Color.White,
-            primaryContainer = tone(0.88f),
+            primaryContainer = tone(lightContainer),
             onPrimaryContainer = tone(0.15f),
-            inversePrimary = tone(0.76f),
+            inversePrimary = tone(darkPrimary),
             secondary = tone(secondaryShade, sat * 0.5f),
             onSecondary = Color.White,
-            secondaryContainer = tone(0.89f, sat * 0.5f),
+            secondaryContainer = tone(lightContainer + 0.01f, sat * 0.5f),
             onSecondaryContainer = tone(0.15f, sat * 0.5f),
             tertiary = tone(tertiaryShade, h = accentHue),
             onTertiary = Color.White,
-            tertiaryContainer = tone(0.89f, h = accentHue),
+            tertiaryContainer = tone(lightContainer + 0.01f, h = accentHue),
             onTertiaryContainer = tone(0.15f, h = accentHue),
             background = neutral(0.98f),
             onBackground = neutral(0.11f),
