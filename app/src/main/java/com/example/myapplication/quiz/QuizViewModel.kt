@@ -40,6 +40,12 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var themeMode by mutableStateOf(savedEnum("themeMode", ThemeMode.SYSTEM))
         private set
+    var vibrant by mutableStateOf(prefs.getBoolean("vibrant", false))
+        private set
+    var soundOn by mutableStateOf(prefs.getBoolean("soundOn", true))
+        private set
+
+    private val sounds = SoundEffects(application)
 
     /** The settings page is shown over whatever screen the player was on. */
     var showingSettings by mutableStateOf(false)
@@ -110,12 +116,14 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         val book = if (game.singleBook) verse.book else bookInput
         results += scoreGuess(verse, Guess(book, chapterInput, verseInput), game.rules)
         clearInputs()
+        if (soundOn) sounds.playClick()
 
         val next = playing.round + 1
-        screen = if (next < game.verses.size) {
-            QuizScreen.Playing(game, next)
+        if (next < game.verses.size) {
+            screen = QuizScreen.Playing(game, next)
         } else {
-            QuizScreen.Finished(game, results.toList())
+            screen = QuizScreen.Finished(game, results.toList())
+            if (soundOn) sounds.playFanfare()
         }
     }
 
@@ -141,6 +149,20 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     fun chooseThemeMode(mode: ThemeMode) {
         themeMode = mode
         prefs.edit().putString("themeMode", mode.name).apply()
+    }
+
+    fun chooseVibrant(on: Boolean) {
+        vibrant = on
+        prefs.edit().putBoolean("vibrant", on).apply()
+    }
+
+    fun chooseSoundOn(on: Boolean) {
+        soundOn = on
+        prefs.edit().putBoolean("soundOn", on).apply()
+    }
+
+    override fun onCleared() {
+        sounds.release()
     }
 
     private inline fun <reified T : Enum<T>> savedEnum(key: String, default: T): T =

@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -22,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -80,6 +83,7 @@ fun SettingsScreen(viewModel: QuizViewModel) {
                         Swatch(
                             palette = palette,
                             dark = dark,
+                            vibrant = viewModel.vibrant,
                             selected = viewModel.palette == palette,
                             onClick = { viewModel.choosePalette(palette) },
                             modifier = Modifier.weight(1f),
@@ -89,13 +93,18 @@ fun SettingsScreen(viewModel: QuizViewModel) {
                     repeat(SWATCHES_PER_ROW - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-            if (viewModel.palette == Palette.DEVICE) {
-                Text(
-                    "Device uses your phone's wallpaper colors when available.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            val canBeVibrant = viewModel.palette != Palette.DEVICE
+            SwitchRow(
+                title = "Vibrant colors",
+                description = if (canBeVibrant) {
+                    "Bolder, more saturated versions of each color."
+                } else {
+                    "Device uses your phone's wallpaper colors. Pick a color to use vibrant colors."
+                },
+                checked = viewModel.vibrant,
+                enabled = canBeVibrant,
+                onCheckedChange = viewModel::chooseVibrant,
+            )
         }
 
         SectionCard("Preview") {
@@ -111,6 +120,52 @@ fun SettingsScreen(viewModel: QuizViewModel) {
             )
             Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Next verse") }
         }
+
+        SectionCard("Sound") {
+            SwitchRow(
+                title = "Sound effects",
+                description = "A click for each answer and a fanfare for your results.",
+                checked = viewModel.soundOn,
+                onCheckedChange = viewModel::chooseSoundOn,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onCheckedChange,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            enabled = enabled,
+            modifier = Modifier.padding(start = 12.dp),
+        )
     }
 }
 
@@ -118,11 +173,12 @@ fun SettingsScreen(viewModel: QuizViewModel) {
 private fun Swatch(
     palette: Palette,
     dark: Boolean,
+    vibrant: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
-    val colors = colorSchemeFor(palette, dark)
+    val colors = colorSchemeFor(palette, dark, vibrant)
     Column(
         modifier = modifier
             .clip(MaterialTheme.shapes.medium)

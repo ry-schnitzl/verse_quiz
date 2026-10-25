@@ -39,10 +39,11 @@ private val LightColorScheme = lightColorScheme(
 fun colorSchemeFor(
     palette: Palette,
     darkTheme: Boolean,
+    vibrant: Boolean = false,
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
 ): ColorScheme = when {
-    palette != Palette.DEVICE -> paletteColorScheme(palette, darkTheme)
+    palette != Palette.DEVICE -> paletteColorScheme(palette, darkTheme, vibrant)
     dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         val context = LocalContext.current
         if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -56,10 +57,11 @@ fun colorSchemeFor(
 fun MyApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     palette: Palette = Palette.DEVICE,
+    vibrant: Boolean = false,
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
-        colorScheme = colorSchemeFor(palette, darkTheme),
+        colorScheme = colorSchemeFor(palette, darkTheme, vibrant),
         typography = Typography,
         content = content
     )

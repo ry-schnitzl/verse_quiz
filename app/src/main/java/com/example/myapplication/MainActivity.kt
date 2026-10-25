@@ -25,7 +25,11 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 onDispose {}
             }
-            MyApplicationTheme(darkTheme = dark, palette = viewModel.palette) {
+            MyApplicationTheme(
+                darkTheme = dark,
+                palette = viewModel.palette,
+                vibrant = viewModel.vibrant,
+            ) {
                 QuizApp(viewModel)
             }
         }
