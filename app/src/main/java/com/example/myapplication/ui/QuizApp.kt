@@ -32,16 +32,20 @@ fun QuizApp(viewModel: QuizViewModel = viewModel()) {
                 .consumeWindowInsets(innerPadding)
                 .imePadding()
         ) {
-            when (val screen = viewModel.screen) {
-                QuizScreen.Loading -> CenteredMessage("Loading verses…", showSpinner = true)
-                is QuizScreen.LoadFailed -> CenteredMessage(screen.message)
-                QuizScreen.Setup -> SetupScreen(viewModel)
-                is QuizScreen.Playing -> QuestionScreen(viewModel, screen)
-                is QuizScreen.Finished -> ResultsScreen(
-                    screen = screen,
-                    onPlayAgain = viewModel::start,
-                    onChangeSettings = viewModel::backToSetup,
-                )
+            if (viewModel.showingSettings) {
+                SettingsScreen(viewModel)
+            } else {
+                when (val screen = viewModel.screen) {
+                    QuizScreen.Loading -> CenteredMessage("Loading verses…", showSpinner = true)
+                    is QuizScreen.LoadFailed -> CenteredMessage(screen.message)
+                    QuizScreen.Setup -> SetupScreen(viewModel)
+                    is QuizScreen.Playing -> QuestionScreen(viewModel, screen)
+                    is QuizScreen.Finished -> ResultsScreen(
+                        screen = screen,
+                        onPlayAgain = viewModel::start,
+                        onChangeSettings = viewModel::backToSetup,
+                    )
+                }
             }
         }
     }

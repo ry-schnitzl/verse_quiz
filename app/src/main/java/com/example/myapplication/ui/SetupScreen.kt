@@ -2,9 +2,11 @@ package com.example.myapplication.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -48,89 +50,96 @@ fun SetupScreen(viewModel: QuizViewModel) {
     var pickingBook by remember { mutableStateOf(false) }
     val scope = viewModel.scope
 
-    Column(
-        modifier = Modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "Verse Quiz",
-                style = MaterialTheme.typography.displaySmall,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                "Read a verse. Name where it's from.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
-
-        SectionCard("Verses from") {
-            Column(Modifier.selectableGroup()) {
-                ScopeOption("Whole Bible", scope == Scope.WholeBible) {
-                    viewModel.chooseScope(Scope.WholeBible)
-                }
-                ScopeOption("Old Testament", scope == Scope.OldTestament) {
-                    viewModel.chooseScope(Scope.OldTestament)
-                }
-                ScopeOption("New Testament", scope == Scope.NewTestament) {
-                    viewModel.chooseScope(Scope.NewTestament)
-                }
-                ScopeOption(
-                    label = if (scope is Scope.SingleBook) "One book: ${scope.book}" else "One book…",
-                    selected = scope is Scope.SingleBook,
-                ) { pickingBook = true }
-            }
-        }
-
-        SectionCard("Number of verses") {
-            val max = viewModel.maxRounds()
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                FilledTonalButton(
-                    onClick = { viewModel.changeRounds(viewModel.rounds - 1) },
-                    enabled = viewModel.rounds > 1,
-                ) { Text("−", style = MaterialTheme.typography.titleLarge) }
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    viewModel.rounds.toString(),
-                    modifier = Modifier.width(80.dp),
-                    style = MaterialTheme.typography.headlineMedium,
-                    textAlign = TextAlign.Center,
+                    "Verse Quiz",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
                 )
-                FilledTonalButton(
-                    onClick = { viewModel.changeRounds(viewModel.rounds + 1) },
-                    enabled = viewModel.rounds < max,
-                ) { Text("+", style = MaterialTheme.typography.titleLarge) }
-            }
-            if (scope is Scope.SingleBook && max < MAX_ROUNDS) {
                 Text(
-                    "${scope.book} has $max verses.",
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.bodySmall,
+                    "Read a verse. Name where it's from.",
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
             }
-        }
 
-        SectionCard("Scoring") {
-            ScoringSummary(ScoringRules.forScope(scope), singleBook = scope is Scope.SingleBook)
-        }
+            SectionCard("Verses from") {
+                Column(Modifier.selectableGroup()) {
+                    ScopeOption("Whole Bible", scope == Scope.WholeBible) {
+                        viewModel.chooseScope(Scope.WholeBible)
+                    }
+                    ScopeOption("Old Testament", scope == Scope.OldTestament) {
+                        viewModel.chooseScope(Scope.OldTestament)
+                    }
+                    ScopeOption("New Testament", scope == Scope.NewTestament) {
+                        viewModel.chooseScope(Scope.NewTestament)
+                    }
+                    ScopeOption(
+                        label = if (scope is Scope.SingleBook) "One book: ${scope.book}" else "One book…",
+                        selected = scope is Scope.SingleBook,
+                    ) { pickingBook = true }
+                }
+            }
 
-        Button(
-            onClick = viewModel::start,
+            SectionCard("Number of verses") {
+                val max = viewModel.maxRounds()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    FilledTonalButton(
+                        onClick = { viewModel.changeRounds(viewModel.rounds - 1) },
+                        enabled = viewModel.rounds > 1,
+                    ) { Text("−", style = MaterialTheme.typography.titleLarge) }
+                    Text(
+                        viewModel.rounds.toString(),
+                        modifier = Modifier.width(80.dp),
+                        style = MaterialTheme.typography.headlineMedium,
+                        textAlign = TextAlign.Center,
+                    )
+                    FilledTonalButton(
+                        onClick = { viewModel.changeRounds(viewModel.rounds + 1) },
+                        enabled = viewModel.rounds < max,
+                    ) { Text("+", style = MaterialTheme.typography.titleLarge) }
+                }
+                if (scope is Scope.SingleBook && max < MAX_ROUNDS) {
+                    Text(
+                        "${scope.book} has $max verses.",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            SectionCard("Scoring") {
+                ScoringSummary(ScoringRules.forScope(scope), singleBook = scope is Scope.SingleBook)
+            }
+
+            Button(
+                onClick = viewModel::start,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+            ) { Text("Start", style = MaterialTheme.typography.titleMedium) }
+        }
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp),
-        ) { Text("Start", style = MaterialTheme.typography.titleMedium) }
+                .align(Alignment.TopEnd)
+                .padding(top = 12.dp, end = 8.dp),
+        ) { MenuButton(listOf("Settings" to viewModel::openSettings)) }
     }
 
     if (pickingBook) {
@@ -147,7 +156,7 @@ fun SetupScreen(viewModel: QuizViewModel) {
 }
 
 @Composable
-private fun SectionCard(title: String, content: @Composable () -> Unit) {
+fun SectionCard(title: String, content: @Composable () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)

@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -89,7 +90,7 @@ fun ResultsScreen(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 48.dp),
-                ) { Text("Change settings") }
+                ) { Text("Back to setup") }
             }
         }
 
@@ -177,9 +178,13 @@ private fun PlainLine(label: String, guess: String) {
     }
 }
 
+/** Green, amber and red whatever the palette, so the marks keep their meaning. */
 @Composable
-private fun markColor(points: Int, max: Int): Color = when {
-    points == max -> MaterialTheme.colorScheme.primary
-    points > 0 -> MaterialTheme.colorScheme.tertiary
-    else -> MaterialTheme.colorScheme.error
+private fun markColor(points: Int, max: Int): Color {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    return when {
+        points == max -> if (dark) Color(0xFF8BD39A) else Color(0xFF2E7D32)
+        points > 0 -> if (dark) Color(0xFFF2C66D) else Color(0xFF8A5F00)
+        else -> MaterialTheme.colorScheme.error
+    }
 }

@@ -50,9 +50,9 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
     val verse = game.verses[screen.round]
     val total = game.verses.size
     val isLast = screen.round == total - 1
-    var confirmingQuit by remember { mutableStateOf(false) }
+    var confirming by remember { mutableStateOf<MenuAction?>(null) }
 
-    BackHandler { confirmingQuit = true }
+    BackHandler { confirming = MenuAction.QUIT }
 
     val firstField = remember { FocusRequester() }
     val chapterField = remember { FocusRequester() }
@@ -78,7 +78,10 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(onClick = { confirmingQuit = true }) { Text("Quit") }
+            MenuButton(
+                MenuAction.entries.map { action -> action.label to { confirming = action } } +
+                    ("Settings" to viewModel::openSettings)
+            )
         }
         LinearProgressIndicator(
             progress = { screen.round.toFloat() / total },
@@ -107,21 +110,48 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
             }
         }
 
-        if (!game.singleBook) {
-            OutlinedTextField(
-                value = viewModel.bookInput,
-                onValueChange = { viewModel.bookInput = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(firstField),
-                label = { Text("Book") },
-                singleLine = true,
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (!game.singleBook) {
+                LabeledField(
+                    label = "Book",
+                    value = viewModel.bookInput,
+                    onValueChange = { viewModel.bookInput = it },
+                    modifier = Modifier.weight(2f),
+                    focusRequester = firstField,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Next,
+                    ),
+                    keyboardActions = KeyboardActions(onNext = { chapterField.requestFocus() }),
+                )
+            }
+            LabeledField(
+                label = "Chapter",
+                value = viewModel.chapterInput,
+                onValueChange = { viewModel.chapterInput = it.filter(Char::isDigit) },
+                modifier = Modifier.weight(1f),
+                focusRequester = if (game.singleBook) firstField else chapterField,
                 keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words,
+                    keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next,
                 ),
-                keyboardActions = KeyboardActions(onNext = { chapterField.requestFocus() }),
+                keyboardActions = KeyboardActions(onNext = { verseField.requestFocus() }),
             )
+            LabeledField(
+                label = "Verse",
+                value = viewModel.verseInput,
+                onValueChange = { viewModel.verseInput = it.filter(Char::isDigit) },
+                modifier = Modifier.weight(1f),
+                focusRequester = verseField,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(onDone = { viewModel.submitGuess() }),
+            )
+        }
+
+        if (!game.singleBook) {
             val books = viewModel.bible?.books.orEmpty()
             val suggestions = remember(viewModel.bookInput, books) {
                 suggestBooks(viewModel.bookInput, books)
@@ -141,37 +171,6 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
-                value = viewModel.chapterInput,
-                onValueChange = { viewModel.chapterInput = it.filter(Char::isDigit) },
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(if (game.singleBook) firstField else chapterField),
-                label = { Text("Chapter") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Next,
-                ),
-                keyboardActions = KeyboardActions(onNext = { verseField.requestFocus() }),
-            )
-            OutlinedTextField(
-                value = viewModel.verseInput,
-                onValueChange = { viewModel.verseInput = it.filter(Char::isDigit) },
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(verseField),
-                label = { Text("Verse") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done,
-                ),
-                keyboardActions = KeyboardActions(onDone = { viewModel.submitGuess() }),
-            )
-        }
-
         Button(
             onClick = viewModel::submitGuess,
             modifier = Modifier
@@ -185,20 +184,59 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
         }
     }
 
-    if (confirmingQuit) {
+    confirming?.let { action ->
         AlertDialog(
-            onDismissRequest = { confirmingQuit = false },
-            title = { Text("Quit this game?") },
+            onDismissRequest = { confirming = null },
+            title = { Text(action.question) },
             text = { Text("Your guesses so far won't be scored.") },
             confirmButton = {
                 TextButton(onClick = {
-                    confirmingQuit = false
-                    viewModel.backToSetup()
-                }) { Text("Quit") }
+                    confirming = null
+                    when (action) {
+                        MenuAction.RESTART -> viewModel.start()
+                        MenuAction.QUIT -> viewModel.backToSetup()
+                    }
+                }) { Text(action.label) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmingQuit = false }) { Text("Keep playing") }
+                TextButton(onClick = { confirming = null }) { Text("Keep playing") }
             },
+        )
+    }
+}
+
+/** Game menu choices that end the current game, so each is confirmed first. */
+private enum class MenuAction(val label: String, val question: String) {
+    RESTART("Restart", "Restart with new verses?"),
+    QUIT("Quit", "Quit this game?"),
+}
+
+/** A text box with its label above it rather than inside, so several fit on one line. */
+@Composable
+private fun LabeledField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier,
+    focusRequester: FocusRequester,
+    keyboardOptions: KeyboardOptions,
+    keyboardActions: KeyboardActions,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
+            singleLine = true,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
         )
     }
 }

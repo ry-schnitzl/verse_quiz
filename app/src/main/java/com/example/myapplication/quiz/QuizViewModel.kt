@@ -1,12 +1,15 @@
 package com.example.myapplication.quiz
 
 import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myapplication.ui.theme.Palette
+import com.example.myapplication.ui.theme.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +33,18 @@ sealed interface QuizScreen {
 }
 
 class QuizViewModel(application: Application) : AndroidViewModel(application) {
+    private val prefs = application.getSharedPreferences("settings", Context.MODE_PRIVATE)
+
+    // Appearance settings, saved on the device.
+    var palette by mutableStateOf(savedEnum("palette", Palette.DEVICE))
+        private set
+    var themeMode by mutableStateOf(savedEnum("themeMode", ThemeMode.SYSTEM))
+        private set
+
+    /** The settings page is shown over whatever screen the player was on. */
+    var showingSettings by mutableStateOf(false)
+        private set
+
     var bible by mutableStateOf<Bible?>(null)
         private set
     var screen by mutableStateOf<QuizScreen>(QuizScreen.Loading)
@@ -109,6 +124,29 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         clearInputs()
         screen = QuizScreen.Setup
     }
+
+    fun openSettings() {
+        showingSettings = true
+    }
+
+    fun closeSettings() {
+        showingSettings = false
+    }
+
+    fun choosePalette(newPalette: Palette) {
+        palette = newPalette
+        prefs.edit().putString("palette", newPalette.name).apply()
+    }
+
+    fun chooseThemeMode(mode: ThemeMode) {
+        themeMode = mode
+        prefs.edit().putString("themeMode", mode.name).apply()
+    }
+
+    private inline fun <reified T : Enum<T>> savedEnum(key: String, default: T): T =
+        prefs.getString(key, null)
+            ?.let { name -> enumValues<T>().firstOrNull { it.name == name } }
+            ?: default
 
     private fun clearInputs() {
         bookInput = ""
