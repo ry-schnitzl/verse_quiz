@@ -115,6 +115,9 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
                         .useLines { Bible.parse(it) }
                 }
                 bible = loaded
+                availableVerses = loaded.versesIn(scope).size
+                // Show the menu now; study mode and the verse picker need this later.
+                launch(Dispatchers.Default) { loaded.chapters }
                 QuizScreen.Setup
             } catch (e: IOException) {
                 QuizScreen.LoadFailed("Can't read the verse file: ${e.message}")
@@ -123,12 +126,15 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Verses available for [scope], which caps how many rounds can be played. */
-    fun availableVerses(scope: Scope = this.scope) = bible?.versesIn(scope)?.size ?: 0
+    var availableVerses by mutableIntStateOf(0)
+        private set
 
-    fun maxRounds() = minOf(MAX_ROUNDS, availableVerses())
+    fun maxRounds() = minOf(MAX_ROUNDS, availableVerses)
 
     fun chooseScope(newScope: Scope) {
         scope = newScope
+        // Counted once per choice, not each time the setup screen redraws.
+        availableVerses = bible?.versesIn(newScope)?.size ?: 0
         if (newScope is Scope.Custom) {
             customSetId = newScope.set.id
             prefs.edit().putLong("customSetId", newScope.set.id).apply()

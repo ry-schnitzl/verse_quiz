@@ -59,7 +59,10 @@ class Bible(
     val oldTestamentBooks get() = books.take(OLD_TESTAMENT_BOOKS)
     val newTestamentBooks get() = books.drop(OLD_TESTAMENT_BOOKS)
 
-    /** Each book's chapters, and each chapter's verses, in order. */
+    /**
+     * Each book's chapters, and each chapter's verses, in order. Slow to build, so
+     * the app builds it in the background as soon as the verses load.
+     */
     val chapters: Map<String, Map<Int, List<VerseRef>>> by lazy {
         verses.groupBy { it.book }.mapValues { (_, inBook) ->
             inBook.groupBy({ it.chapter }, { it.ref })
