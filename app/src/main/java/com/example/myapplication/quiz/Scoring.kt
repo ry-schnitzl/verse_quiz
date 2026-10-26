@@ -30,6 +30,20 @@ data class ScoringRules(
     }
 }
 
+/** The parts of a reference, which the player guesses one at a time. */
+enum class GuessStep(val label: String) {
+    BOOK("Book"),
+    CHAPTER("Chapter"),
+    VERSE("Verse"),
+}
+
+/** Whether [input] is exactly right for [step] of [verse]. A number even one off isn't. */
+fun isExact(step: GuessStep, input: String, verse: Verse) = when (step) {
+    GuessStep.BOOK -> normalizeBook(input) == normalizeBook(verse.book)
+    GuessStep.CHAPTER -> input.trim().toIntOrNull() == verse.chapter
+    GuessStep.VERSE -> input.trim().toIntOrNull() == verse.verse
+}
+
 /** What the player typed. Any part may be blank. */
 data class Guess(val book: String, val chapter: String, val verse: String)
 

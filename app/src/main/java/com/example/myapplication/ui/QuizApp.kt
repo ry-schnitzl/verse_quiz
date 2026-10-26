@@ -53,6 +53,8 @@ fun QuizApp(viewModel: QuizViewModel = viewModel()) {
                         )
                     }
                 }
+                ScreenFlash(viewModel.cheers, viewModel.misses)
+                CheckmarkRain(viewModel.cheers)
             }
         }
     }

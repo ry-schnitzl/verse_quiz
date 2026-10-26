@@ -99,10 +99,19 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     var draftVerses by mutableStateOf<Set<VerseRef>>(emptySet())
         private set
 
-    // The current guess.
+    // The current guess, asked one part at a time.
+    var step by mutableStateOf(GuessStep.BOOK)
+        private set
     var bookInput by mutableStateOf("")
     var chapterInput by mutableStateOf("")
     var verseInput by mutableStateOf("")
+
+    /** Counts the player's right answers; each sets off a shower of checkmarks. */
+    var cheers by mutableIntStateOf(0)
+        private set
+    /** Counts the player's wrong answers; each flashes the screen's edge red. */
+    var misses by mutableIntStateOf(0)
+        private set
 
     private val results = mutableListOf<VerseResult>()
 
@@ -151,27 +160,49 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         val picks = bible.versesIn(scope).shuffled().take(rounds)
         if (picks.isEmpty()) return
         results.clear()
-        clearInputs()
-        screen = QuizScreen.Playing(Game(scope, picks), 0)
+        showVerse(Game(scope, picks), 0)
     }
 
+    /**
+     * Check the part of the reference being asked. When it's exactly right, ask
+     * the next part; otherwise, or once the verse number is right, score the
+     * verse and move on.
+     */
     fun submitGuess() {
         val playing = screen as? QuizScreen.Playing ?: return
         val game = playing.game
         val verse = game.verses[playing.round]
+        val input = when (step) {
+            GuessStep.BOOK -> bookInput
+            GuessStep.CHAPTER -> chapterInput
+            GuessStep.VERSE -> verseInput
+        }
+        val right = isExact(step, input, verse)
+        if (right) cheers++ else misses++
+        if (soundMode != SoundMode.OFF) sounds.playClick()
+        if (right && step != GuessStep.VERSE) {
+            step = GuessStep.entries[step.ordinal + 1]
+            return
+        }
+
         // Any book typed in single-book mode is ignored.
         val book = if (game.singleBook) verse.book else bookInput
         results += scoreGuess(verse, Guess(book, chapterInput, verseInput), game.rules)
-        clearInputs()
-        if (soundMode != SoundMode.OFF) sounds.playClick()
-
         val next = playing.round + 1
         if (next < game.verses.size) {
-            screen = QuizScreen.Playing(game, next)
+            showVerse(game, next)
         } else {
+            clearInputs()
             screen = QuizScreen.Finished(game, results.toList())
             if (soundMode != SoundMode.OFF) sounds.playFanfare()
         }
+    }
+
+    private fun showVerse(game: Game, round: Int) {
+        clearInputs()
+        // A single-book game doesn't ask for the book.
+        step = if (game.singleBook) GuessStep.CHAPTER else GuessStep.BOOK
+        screen = QuizScreen.Playing(game, round)
     }
 
     fun openVerseSets() {

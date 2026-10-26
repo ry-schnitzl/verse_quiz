@@ -1,7 +1,9 @@
 package com.example.myapplication.quiz
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScoringTest {
@@ -73,5 +75,16 @@ class ScoringTest {
         assertEquals(2, bible.verses[1].bookNumber)
         assertEquals("I John", Bible(emptyList(), listOf("I John")).findBook("1 john"))
         assertNull(bible.findBook("Hezekiah"))
+    }
+
+    @Test
+    fun eachStepNeedsAnExactAnswer() {
+        assertTrue(isExact(GuessStep.BOOK, "john", john316))
+        assertFalse(isExact(GuessStep.BOOK, "I John", john316))
+        assertTrue(isExact(GuessStep.CHAPTER, "3", john316))
+        assertFalse(isExact(GuessStep.CHAPTER, "4", john316))
+        assertTrue(isExact(GuessStep.VERSE, "016", john316))
+        assertFalse(isExact(GuessStep.VERSE, "15", john316))
+        assertFalse(isExact(GuessStep.VERSE, "", john316))
     }
 }

@@ -27,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.quiz.GuessStep
 import com.example.myapplication.quiz.QuizScreen
 import com.example.myapplication.quiz.QuizViewModel
 import com.example.myapplication.quiz.suggestBooks
@@ -49,17 +51,15 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
     val game = screen.game
     val verse = game.verses[screen.round]
     val total = game.verses.size
-    val isLast = screen.round == total - 1
     var confirming by remember { mutableStateOf<MenuAction?>(null) }
     val click = LocalUiClick.current
 
     BackHandler { confirming = MenuAction.QUIT }
 
-    val firstField = remember { FocusRequester() }
-    val chapterField = remember { FocusRequester() }
-    val verseField = remember { FocusRequester() }
-    // Put the cursor in the first box for each new verse.
-    LaunchedEffect(screen.round) { firstField.requestFocus() }
+    val step = viewModel.step
+    val field = remember { FocusRequester() }
+    // Put the cursor in the box for each new question.
+    LaunchedEffect(screen.round, step) { field.requestFocus() }
 
     Column(
         modifier = Modifier
@@ -111,48 +111,63 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!game.singleBook) {
-                LabeledField(
-                    label = "Book",
-                    value = viewModel.bookInput,
-                    onValueChange = { viewModel.bookInput = it },
-                    modifier = Modifier.weight(2f),
-                    focusRequester = firstField,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Words,
-                        imeAction = ImeAction.Next,
-                    ),
-                    keyboardActions = KeyboardActions(onNext = { chapterField.requestFocus() }),
-                )
-            }
-            LabeledField(
-                label = "Chapter",
-                value = viewModel.chapterInput,
-                onValueChange = { viewModel.chapterInput = it.filter(Char::isDigit) },
-                modifier = Modifier.weight(1f),
-                focusRequester = if (game.singleBook) firstField else chapterField,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Next,
-                ),
-                keyboardActions = KeyboardActions(onNext = { verseField.requestFocus() }),
-            )
-            LabeledField(
-                label = "Verse",
-                value = viewModel.verseInput,
-                onValueChange = { viewModel.verseInput = it.filter(Char::isDigit) },
-                modifier = Modifier.weight(1f),
-                focusRequester = verseField,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done,
-                ),
-                keyboardActions = KeyboardActions(onDone = { viewModel.submitGuess() }),
+        // The parts guessed right so far.
+        val known = when (step) {
+            GuessStep.BOOK -> ""
+            GuessStep.CHAPTER -> if (game.singleBook) "" else verse.book
+            GuessStep.VERSE -> "${verse.book} ${verse.chapter}"
+        }
+        if (known.isNotEmpty()) {
+            Text(
+                "✓ $known",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
 
-        if (!game.singleBook) {
+        // Only one box at a time; a new one replaces the last.
+        // Half the width, centered over the button.
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            key(step) {
+                when (step) {
+                    GuessStep.BOOK -> LabeledField(
+                        label = "Book",
+                        value = viewModel.bookInput,
+                        onValueChange = { viewModel.bookInput = it },
+                        focusRequester = field,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Done,
+                        ),
+                        onDone = viewModel::submitGuess,
+                    )
+                    GuessStep.CHAPTER -> LabeledField(
+                        label = "Chapter",
+                        value = viewModel.chapterInput,
+                        onValueChange = { viewModel.chapterInput = it.filter(Char::isDigit) },
+                        focusRequester = field,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done,
+                        ),
+                        onDone = viewModel::submitGuess,
+                    )
+                    GuessStep.VERSE -> LabeledField(
+                        label = "Verse",
+                        value = viewModel.verseInput,
+                        onValueChange = { viewModel.verseInput = it.filter(Char::isDigit) },
+                        focusRequester = field,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done,
+                        ),
+                        onDone = viewModel::submitGuess,
+                    )
+                }
+            }
+        }
+
+        if (step == GuessStep.BOOK) {
             val books = viewModel.bible?.books.orEmpty()
             val suggestions = remember(viewModel.bookInput, books) {
                 suggestBooks(viewModel.bookInput, books)
@@ -162,9 +177,8 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
                     items(suggestions) { book ->
                         SuggestionChip(
                             onClick = {
-                                click()
                                 viewModel.bookInput = book
-                                chapterField.requestFocus()
+                                viewModel.submitGuess()
                             },
                             label = { Text(book) },
                         )
@@ -180,7 +194,7 @@ fun QuestionScreen(viewModel: QuizViewModel, screen: QuizScreen.Playing) {
                 .heightIn(min = 56.dp),
         ) {
             Text(
-                if (isLast) "Finish and see results" else "Next verse",
+                "Submit",
                 style = MaterialTheme.typography.titleMedium,
             )
         }
@@ -217,18 +231,17 @@ private enum class MenuAction(val label: String, val question: String) {
     QUIT("Quit", "Quit this game?"),
 }
 
-/** A text box with its label above it rather than inside, so several fit on one line. */
+/** A text box with its label above it. */
 @Composable
 private fun LabeledField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier,
     focusRequester: FocusRequester,
     keyboardOptions: KeyboardOptions,
-    keyboardActions: KeyboardActions,
+    onDone: () -> Unit,
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth(0.5f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             label,
             style = MaterialTheme.typography.labelLarge,
@@ -242,7 +255,7 @@ private fun LabeledField(
                 .focusRequester(focusRequester),
             singleLine = true,
             keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
         )
     }
 }
