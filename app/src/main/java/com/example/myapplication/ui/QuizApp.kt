@@ -42,6 +42,8 @@ fun QuizApp(viewModel: QuizViewModel = viewModel()) {
                         is QuizScreen.LoadFailed -> CenteredMessage(screen.message)
                         QuizScreen.Setup -> SetupScreen(viewModel)
                         QuizScreen.VerseSets -> VerseSetsScreen(viewModel)
+                        QuizScreen.Study -> StudyScreen(viewModel)
+                        is QuizScreen.Notes -> NotesScreen(viewModel, screen.book)
                         is QuizScreen.EditingSet -> VerseSetEditor(viewModel, screen)
                         is QuizScreen.Playing -> QuestionScreen(viewModel, screen)
                         is QuizScreen.Finished -> ResultsScreen(

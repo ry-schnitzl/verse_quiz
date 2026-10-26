@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -94,10 +95,7 @@ fun VerseSetsScreen(viewModel: QuizViewModel) {
                         viewModel.renameVerseSet(set, name)
                         renamingId = null
                     },
-                    onEdit = {
-                        click()
-                        viewModel.editVerseSet(set)
-                    },
+                    onEdit = { viewModel.editVerseSet(set) },
                 )
                 HorizontalDivider()
             }
@@ -190,12 +188,19 @@ private fun RenameField(name: String, onDone: (String) -> Unit, modifier: Modifi
     )
 }
 
-/** A › that opens the page for the thing to its left. */
+/** A › that opens the page for the thing to its left, brightening as it goes. */
 @Composable
 fun ArrowButton(description: String, onClick: () -> Unit) {
+    val click = LocalUiClick.current
+    val brighten = rememberBrighten()
     IconButton(
-        onClick = onClick,
-        modifier = Modifier.semantics { contentDescription = description },
+        onClick = {
+            click()
+            brighten.then(onClick)
+        },
+        modifier = Modifier
+            .brightened(brighten, CircleShape)
+            .semantics { contentDescription = description },
     ) {
         Text(
             "›",

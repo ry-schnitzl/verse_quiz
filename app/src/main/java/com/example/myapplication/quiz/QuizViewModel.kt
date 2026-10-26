@@ -36,12 +36,17 @@ sealed interface QuizScreen {
     data object VerseSets : QuizScreen
     /** Picking verses for a new set, or changing [original]. */
     data class EditingSet(val original: VerseSet?) : QuizScreen
+    /** Study mode's list of books. */
+    data object Study : QuizScreen
+    data class Notes(val book: String) : QuizScreen
     data class Playing(val game: Game, val round: Int) : QuizScreen
     data class Finished(val game: Game, val results: List<VerseResult>) : QuizScreen
 }
 
 class QuizViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    /** Study notes, one entry per book. */
+    private val notesPrefs = application.getSharedPreferences("notes", Context.MODE_PRIVATE)
 
     // Appearance settings, saved on the device.
     var palette by mutableStateOf(savedEnum("palette", Palette.DEVICE))
@@ -82,6 +87,13 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         prefs.getLong("customSetId", 0L).takeIf { it != 0L }
     )
     val customSet get() = verseSets.firstOrNull { it.id == customSetId }
+
+    /** Books with any study notes. */
+    var notedBooks by mutableStateOf(notesPrefs.all.keys.toSet())
+        private set
+    /** The notes for the book open in study mode. */
+    var bookNotes by mutableStateOf(BookNotes())
+        private set
 
     // The verse set being edited.
     var draftVerses by mutableStateOf<Set<VerseRef>>(emptySet())
@@ -209,6 +221,36 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         }
         if ((scope as? Scope.Custom)?.set?.id == set.id) chooseScope(Scope.WholeBible)
         screen = QuizScreen.VerseSets
+    }
+
+    fun openStudy() {
+        screen = QuizScreen.Study
+    }
+
+    fun openNotes(book: String) {
+        bookNotes = decodeBookNotes(notesPrefs.getString(book, null))
+        screen = QuizScreen.Notes(book)
+    }
+
+    fun nameChapter(book: String, chapter: Int, name: String) {
+        val names = if (name.isBlank()) bookNotes.names - chapter else bookNotes.names + (chapter to name)
+        saveNotes(book, bookNotes.copy(names = names))
+    }
+
+    fun writeNotes(book: String, chapter: Int, notes: RichText) {
+        val all = if (notes.text.isEmpty()) bookNotes.notes - chapter else bookNotes.notes + (chapter to notes)
+        saveNotes(book, bookNotes.copy(notes = all))
+    }
+
+    private fun saveNotes(book: String, notes: BookNotes) {
+        bookNotes = notes
+        if (notes.isEmpty()) {
+            notesPrefs.edit().remove(book).apply()
+            notedBooks = notedBooks - book
+        } else {
+            notesPrefs.edit().putString(book, encodeBookNotes(notes)).apply()
+            notedBooks = notedBooks + book
+        }
     }
 
     fun backToSetup() {

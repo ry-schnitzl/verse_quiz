@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -114,10 +115,7 @@ fun SetupScreen(viewModel: QuizViewModel) {
                         selected = scope is Scope.Custom,
                         detail = customSet?.let { versesLabel(it.verses.size) },
                         trailing = {
-                            ArrowButton("Verse sets") {
-                                click()
-                                viewModel.openVerseSets()
-                            }
+                            ArrowButton("Verse sets", viewModel::openVerseSets)
                         },
                     ) {
                         // With no set picked yet, go pick one.
@@ -166,6 +164,33 @@ fun SetupScreen(viewModel: QuizViewModel) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            val studyBrighten = rememberBrighten()
+            Card(
+                onClick = {
+                    click()
+                    studyBrighten.then(viewModel::openStudy)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .brightened(studyBrighten, CardDefaults.shape),
+            ) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Study Mode", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Keep notes on each chapter of the Bible.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        "›",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

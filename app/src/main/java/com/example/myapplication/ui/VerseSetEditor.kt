@@ -131,10 +131,7 @@ fun VerseSetEditor(viewModel: QuizViewModel, screen: QuizScreen.EditingSet) {
             openBook == null -> BookList(
                 bible = bible,
                 draft = draft,
-                onOpen = {
-                    click()
-                    book = it
-                },
+                onOpen = { book = it },
                 onToggle = { b, picked -> toggle(bible.refsIn(b), picked) },
                 modifier = levelModifier,
             )
@@ -294,11 +291,17 @@ private fun BookChoice(
     onOpen: (String) -> Unit,
     onToggle: (String, Picked) -> Unit,
 ) {
+    val click = LocalUiClick.current
+    val brighten = rememberBrighten()
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable { onOpen(book) },
+            .brightened(brighten, MaterialTheme.shapes.small)
+            .clickable {
+                click()
+                brighten.then { onOpen(book) }
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TriStateCheckbox(
