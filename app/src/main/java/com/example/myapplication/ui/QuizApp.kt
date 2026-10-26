@@ -41,6 +41,8 @@ fun QuizApp(viewModel: QuizViewModel = viewModel()) {
                         QuizScreen.Loading -> CenteredMessage("Loading verses…", showSpinner = true)
                         is QuizScreen.LoadFailed -> CenteredMessage(screen.message)
                         QuizScreen.Setup -> SetupScreen(viewModel)
+                        QuizScreen.VerseSets -> VerseSetsScreen(viewModel)
+                        is QuizScreen.EditingSet -> VerseSetEditor(viewModel, screen)
                         is QuizScreen.Playing -> QuestionScreen(viewModel, screen)
                         is QuizScreen.Finished -> ResultsScreen(
                             screen = screen,

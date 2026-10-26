@@ -11,11 +11,21 @@ data class Verse(
     val text: String,
 ) {
     val reference get() = "$book $chapter:$verse"
+    val ref get() = VerseRef(book, chapter, verse)
 }
+
+/** Where a verse is, without its text. */
+data class VerseRef(val book: String, val chapter: Int, val verse: Int)
+
+/** Verses the player picked and named, saved for later games. */
+data class VerseSet(val id: Long, val name: String, val verses: Set<VerseRef>)
 
 /** Which verses a game draws from. */
 sealed interface Scope {
     val label: String
+
+    /** The one book every verse comes from, if there is one. Its games don't ask for the book. */
+    val onlyBook: String? get() = null
 
     data object WholeBible : Scope {
         override val label = "the whole Bible"
@@ -31,6 +41,12 @@ sealed interface Scope {
 
     data class SingleBook(val book: String) : Scope {
         override val label get() = book
+        override val onlyBook get() = book
+    }
+
+    data class Custom(val set: VerseSet) : Scope {
+        override val label get() = set.name
+        override val onlyBook = set.verses.mapTo(HashSet()) { it.book }.singleOrNull()
     }
 }
 
@@ -43,11 +59,23 @@ class Bible(
     val oldTestamentBooks get() = books.take(OLD_TESTAMENT_BOOKS)
     val newTestamentBooks get() = books.drop(OLD_TESTAMENT_BOOKS)
 
+    /** Each book's chapters, and each chapter's verses, in order. */
+    val chapters: Map<String, Map<Int, List<VerseRef>>> by lazy {
+        verses.groupBy { it.book }.mapValues { (_, inBook) ->
+            inBook.groupBy({ it.chapter }, { it.ref })
+        }
+    }
+
+    fun refsIn(book: String): List<VerseRef> = chapters[book].orEmpty().values.flatten()
+
+    fun refsIn(book: String, chapter: Int): List<VerseRef> = chapters[book]?.get(chapter).orEmpty()
+
     fun versesIn(scope: Scope): List<Verse> = when (scope) {
         Scope.WholeBible -> verses
         Scope.OldTestament -> verses.filter { it.bookNumber <= OLD_TESTAMENT_BOOKS }
         Scope.NewTestament -> verses.filter { it.bookNumber > OLD_TESTAMENT_BOOKS }
         is Scope.SingleBook -> verses.filter { it.book == scope.book }
+        is Scope.Custom -> verses.filter { it.ref in scope.set.verses }
     }
 
     /** Find a book by any name [normalizeBook] accepts, such as "1 john" for "I John". */

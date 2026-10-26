@@ -1,5 +1,7 @@
 package com.example.myapplication.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,9 +32,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +52,7 @@ import com.example.myapplication.quiz.ScoringRules
 fun SetupScreen(viewModel: QuizViewModel) {
     val bible = viewModel.bible ?: return
     var pickingBook by remember { mutableStateOf(false) }
+    var choosingScope by rememberSaveable { mutableStateOf(false) }
     val scope = viewModel.scope
     val click = LocalUiClick.current
 
@@ -75,21 +80,53 @@ fun SetupScreen(viewModel: QuizViewModel) {
                 )
             }
 
-            SectionCard("Verses from") {
+            val customSet = viewModel.customSet
+            // Picking an option folds the list back up.
+            fun choose(newScope: Scope) {
+                viewModel.chooseScope(newScope)
+                choosingScope = false
+            }
+            CollapsibleSectionCard(
+                title = "Verses from",
+                summary = when (scope) {
+                    Scope.WholeBible -> "Whole Bible"
+                    Scope.OldTestament -> "Old Testament"
+                    Scope.NewTestament -> "New Testament"
+                    is Scope.SingleBook -> "One book: ${scope.book}"
+                    is Scope.Custom -> "Custom: ${scope.set.name}"
+                },
+                expanded = choosingScope,
+                onToggle = {
+                    click()
+                    choosingScope = !choosingScope
+                },
+            ) {
                 Column(Modifier.selectableGroup()) {
-                    ScopeOption("Whole Bible", scope == Scope.WholeBible) {
-                        viewModel.chooseScope(Scope.WholeBible)
-                    }
-                    ScopeOption("Old Testament", scope == Scope.OldTestament) {
-                        viewModel.chooseScope(Scope.OldTestament)
-                    }
-                    ScopeOption("New Testament", scope == Scope.NewTestament) {
-                        viewModel.chooseScope(Scope.NewTestament)
-                    }
+                    ScopeOption("Whole Bible", scope == Scope.WholeBible) { choose(Scope.WholeBible) }
+                    ScopeOption("Old Testament", scope == Scope.OldTestament) { choose(Scope.OldTestament) }
+                    ScopeOption("New Testament", scope == Scope.NewTestament) { choose(Scope.NewTestament) }
                     ScopeOption(
                         label = if (scope is Scope.SingleBook) "One book: ${scope.book}" else "One book…",
                         selected = scope is Scope.SingleBook,
                     ) { pickingBook = true }
+                    ScopeOption(
+                        label = if (customSet != null) "Custom: ${customSet.name}" else "Custom…",
+                        selected = scope is Scope.Custom,
+                        detail = customSet?.let { versesLabel(it.verses.size) },
+                        trailing = {
+                            ArrowButton("Verse sets") {
+                                click()
+                                viewModel.openVerseSets()
+                            }
+                        },
+                    ) {
+                        // With no set picked yet, go pick one.
+                        if (customSet != null) {
+                            choose(Scope.Custom(customSet))
+                        } else {
+                            viewModel.openVerseSets()
+                        }
+                    }
                 }
             }
 
@@ -121,9 +158,10 @@ fun SetupScreen(viewModel: QuizViewModel) {
                         enabled = viewModel.rounds < max,
                     ) { Text("+", style = MaterialTheme.typography.titleLarge) }
                 }
-                if (scope is Scope.SingleBook && max < MAX_ROUNDS) {
+                // Only a book or a verse set can be this small.
+                if (max < MAX_ROUNDS) {
                     Text(
-                        "${scope.book} has $max verses.",
+                        "${scope.label} has ${versesLabel(max)}.",
                         modifier = Modifier.fillMaxWidth(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -133,7 +171,7 @@ fun SetupScreen(viewModel: QuizViewModel) {
             }
 
             SectionCard("Scoring") {
-                ScoringSummary(ScoringRules.forScope(scope), singleBook = scope is Scope.SingleBook)
+                ScoringSummary(ScoringRules.forScope(scope), singleBook = scope.onlyBook != null)
             }
 
             Button(
@@ -160,6 +198,7 @@ fun SetupScreen(viewModel: QuizViewModel) {
             onPick = {
                 viewModel.chooseScope(Scope.SingleBook(it))
                 pickingBook = false
+                choosingScope = false
             },
             onDismiss = { pickingBook = false },
         )
@@ -176,8 +215,56 @@ fun SectionCard(title: String, content: @Composable () -> Unit) {
     }
 }
 
+/** A section that shows only its [summary] until the player taps the header to open it. */
 @Composable
-private fun ScopeOption(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun CollapsibleSectionCard(
+    title: String,
+    summary: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    // The › points down when closed and up when open.
+    val arrowTurn by animateFloatAsState(if (expanded) -90f else 90f, label = "arrow")
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClickLabel = if (expanded) "Collapse" else "Expand", onClick = onToggle)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    summary,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                "›",
+                modifier = Modifier.rotate(arrowTurn),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) { content() }
+        }
+    }
+}
+
+fun versesLabel(count: Int) = if (count == 1) "1 verse" else "$count verses"
+
+@Composable
+private fun ScopeOption(
+    label: String,
+    selected: Boolean,
+    detail: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
     val click = LocalUiClick.current
     Row(
         modifier = Modifier
@@ -195,7 +282,17 @@ private fun ScopeOption(label: String, selected: Boolean, onClick: () -> Unit) {
     ) {
         RadioButton(selected = selected, onClick = null)
         Spacer(Modifier.size(12.dp))
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            if (detail != null) {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        trailing?.invoke()
     }
 }
 
@@ -250,7 +347,7 @@ private fun BookPickerDialog(
 }
 
 @Composable
-private fun BookGroupHeader(title: String) {
+fun BookGroupHeader(title: String) {
     Text(
         title,
         modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),

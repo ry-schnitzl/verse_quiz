@@ -26,14 +26,16 @@ enum class SoundMode(val label: String, val description: String) {
 
 class Game(val scope: Scope, val verses: List<Verse>) {
     val rules = ScoringRules.forScope(scope)
-    val singleBook get() = scope is Scope.SingleBook
-    val maxScore get() = verses.size * rules.maxPerVerse
+    val singleBook get() = scope.onlyBook != null
 }
 
 sealed interface QuizScreen {
     data object Loading : QuizScreen
     data class LoadFailed(val message: String) : QuizScreen
     data object Setup : QuizScreen
+    data object VerseSets : QuizScreen
+    /** Picking verses for a new set, or changing [original]. */
+    data class EditingSet(val original: VerseSet?) : QuizScreen
     data class Playing(val game: Game, val round: Int) : QuizScreen
     data class Finished(val game: Game, val results: List<VerseResult>) : QuizScreen
 }
@@ -71,6 +73,20 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
     var rounds by mutableIntStateOf(DEFAULT_ROUNDS)
         private set
 
+    /** The player's named verse sets, saved on the device. */
+    var verseSets by mutableStateOf(decodeVerseSets(prefs.getString("verseSets", null) ?: "[]"))
+        private set
+
+    // The set the Custom option plays, remembered while another option is chosen.
+    private var customSetId by mutableStateOf(
+        prefs.getLong("customSetId", 0L).takeIf { it != 0L }
+    )
+    val customSet get() = verseSets.firstOrNull { it.id == customSetId }
+
+    // The verse set being edited.
+    var draftVerses by mutableStateOf<Set<VerseRef>>(emptySet())
+        private set
+
     // The current guess.
     var bookInput by mutableStateOf("")
     var chapterInput by mutableStateOf("")
@@ -101,6 +117,10 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
 
     fun chooseScope(newScope: Scope) {
         scope = newScope
+        if (newScope is Scope.Custom) {
+            customSetId = newScope.set.id
+            prefs.edit().putLong("customSetId", newScope.set.id).apply()
+        }
         rounds = rounds.coerceIn(1, maxOf(1, maxRounds()))
     }
 
@@ -134,6 +154,61 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
             screen = QuizScreen.Finished(game, results.toList())
             if (soundMode != SoundMode.OFF) sounds.playFanfare()
         }
+    }
+
+    fun openVerseSets() {
+        screen = QuizScreen.VerseSets
+    }
+
+    fun newVerseSet() = editVerseSet(null)
+
+    fun editVerseSet(set: VerseSet?) {
+        draftVerses = set?.verses.orEmpty()
+        screen = QuizScreen.EditingSet(set)
+    }
+
+    /** Add [refs] to the set being edited, or take them out. */
+    fun selectDraftVerses(refs: Collection<VerseRef>, selected: Boolean) {
+        draftVerses = if (selected) draftVerses + refs else draftVerses - refs.toSet()
+    }
+
+    fun clearDraftVerses() {
+        draftVerses = emptySet()
+    }
+
+    /**
+     * Save the set being edited and go back to the list. A new set gets a
+     * placeholder name, which the player can change from the list.
+     */
+    fun saveDraft() {
+        val editing = screen as? QuizScreen.EditingSet ?: return
+        if (draftVerses.isEmpty()) return
+        val original = editing.original
+        if (original == null) {
+            val name = generateSequence(verseSets.size + 1) { it + 1 }
+                .map { "Verse set $it" }
+                .first { name -> verseSets.none { it.name == name } }
+            val saved = VerseSet(System.currentTimeMillis(), name, draftVerses)
+            storeVerseSets(verseSets + saved)
+            chooseScope(Scope.Custom(saved))
+        } else {
+            replaceVerseSet(original.copy(verses = draftVerses))
+        }
+        screen = QuizScreen.VerseSets
+    }
+
+    fun renameVerseSet(set: VerseSet, name: String) {
+        if (name.isNotBlank()) replaceVerseSet(set.copy(name = name.trim()))
+    }
+
+    fun deleteVerseSet(set: VerseSet) {
+        storeVerseSets(verseSets.filter { it.id != set.id })
+        if (customSetId == set.id) {
+            customSetId = null
+            prefs.edit().remove("customSetId").apply()
+        }
+        if ((scope as? Scope.Custom)?.set?.id == set.id) chooseScope(Scope.WholeBible)
+        screen = QuizScreen.VerseSets
     }
 
     fun backToSetup() {
@@ -183,6 +258,17 @@ class QuizViewModel(application: Application) : AndroidViewModel(application) {
         prefs.getString(key, null)
             ?.let { name -> enumValues<T>().firstOrNull { it.name == name } }
             ?: default
+
+    /** Swap in a changed copy of a set, keeping its place, and play the new copy if it's chosen. */
+    private fun replaceVerseSet(changed: VerseSet) {
+        storeVerseSets(verseSets.map { if (it.id == changed.id) changed else it })
+        if ((scope as? Scope.Custom)?.set?.id == changed.id) chooseScope(Scope.Custom(changed))
+    }
+
+    private fun storeVerseSets(sets: List<VerseSet>) {
+        verseSets = sets
+        prefs.edit().putString("verseSets", encodeVerseSets(sets)).apply()
+    }
 
     private fun clearInputs() {
         bookInput = ""

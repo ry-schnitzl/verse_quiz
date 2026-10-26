@@ -66,13 +66,13 @@ fun ResultsScreen(
                         style = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Bold,
                     )
-                    Text("out of ${game.maxScore}", style = MaterialTheme.typography.bodyMedium)
-                    if (!game.singleBook) {
-                        Text(
-                            "Books correct: ${results.count { it.bookRight }} / ${results.size}",
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
+                    // One-book games don't ask for the book, so count exact chapters instead.
+                    val correct = if (game.singleBook) {
+                        "Chapters correct: ${results.count { it.chapterScore == game.rules.chapterPoints }}"
+                    } else {
+                        "Books correct: ${results.count { it.bookRight }}"
                     }
+                    Text("$correct / ${results.size}", modifier = Modifier.padding(top = 12.dp))
                     Text("Combo points: ${results.sumOf { it.comboScore }}")
                 }
             }

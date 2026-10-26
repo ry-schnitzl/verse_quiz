@@ -26,7 +26,7 @@ data class ScoringRules(
         val SINGLE_BOOK = ScoringRules(bookPoints = 0, chapterPoints = 5)
 
         fun forScope(scope: Scope) =
-            if (scope is Scope.SingleBook) SINGLE_BOOK else WHOLE_BIBLE
+            if (scope.onlyBook != null) SINGLE_BOOK else WHOLE_BIBLE
     }
 }
 
